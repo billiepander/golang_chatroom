@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"log"
 	"github.com/gorilla/websocket"
+	"github.com/chatroom/trace"
 )
 
 const (
@@ -21,6 +22,8 @@ type room struct {
 	leave chan *client
 	// clients holds all current clients in this room.
 	clients map[*client]bool
+	// tracer will receive trace information of activity in the room.
+	tracer trace.Tracer
 }
 
 func newRoom()  *room{        // 有时，创建New方法，并不是因为需要检验值或者什么的，如下，只是为了少写几行初始化代码
@@ -29,6 +32,7 @@ func newRoom()  *room{        // 有时，创建New方法，并不是因为需�
 		join: make(chan *client),
 		leave: make(chan *client),
 		clients: make(map[*client]bool),
+		tracer: trace.Off(),     // 默认返回一个不记录的trace，这里是在main中改变为了要记录的情况; 当然也可以默认设置为trace.New(os.Stdout)，这样就是默认开启了
 	}
 }
 
@@ -38,10 +42,13 @@ func (r *room) run() {
 		select {
 		case client := <-r.join:
 			r.clients[client] = true
+			r.tracer.Trace("New client joined")
 		case client := <-r.leave:
 			delete(r.clients, client)
 			close(client.send)
+			r.tracer.Trace("Client left")
 		case msg := <-r.forward:
+			r.tracer.Trace("Message received: ", string(msg))
 			for client := range r.clients {
 				client.send <- msg
 			}
