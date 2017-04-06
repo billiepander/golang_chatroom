@@ -59,6 +59,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request)  {
 		}
 		authCookieValue := objx.New(map[string]interface{}{   // creates a new Map containing the map[string]interface{}
 			"name": user.Name(),
+			"avatar_url": user.AvatarURL(),
 		}).MustBase64()
 		http.SetCookie(w, &http.Cookie{
 			Name: "auth",
@@ -103,6 +104,16 @@ func main() {
 	http.Handle("/login", &templateHandler{filename: "login.html"})
 	http.HandleFunc("/auth/", loginHandler)
 	http.Handle("/room", r)
+	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {   // 此时设置logout，主要是为了remove cookie
+		http.SetCookie(w, &http.Cookie{
+			Name: "auth",
+			Value: "",
+			Path: "/",
+			MaxAge: -1,    // -1就是立即删除cookie
+		})
+		w.Header().Set("Location", "/chat")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	})
 
 	go r.run()
 
